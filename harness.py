@@ -25,6 +25,7 @@ parser.add_argument('--annotate-dest', dest='annotate_dest', default=None, help=
 parser.add_argument('--chrom-size', dest='chrom_size', default=None, help='path to chromosome sizes file for creating bigWig annotations')
 parser.add_argument('--annotate-url', dest='annotate_url', default='', help='url prefix for annotations')
 parser.add_argument('--bigwig-exe', dest='bigwig_exe', default='wigToBigWig', help='path to wigToBigWig executable (default: wigToBigWig)')
+parser.add_argument('--validate', dest='validate', default='on', choices=['on','off'], help='whether to partition data into training and validation sets when training (default: on)')
 
 def main():
     args = parser.parse_args()
@@ -48,8 +49,12 @@ def main():
         dir = os.path.dirname(save_prefix)
         if not os.path.exists(dir):
             os.makedirs(dir)
+        if args.validate == 'off':
+            validate = False
+        else:
+            validate = True
         train(model, data, args.epochs, args.bptt, args.batch_size, save_prefix
-              , args.snapshot_every, start_epoch = epoch)
+              , args.snapshot_every, start_epoch = epoch, validate=validate)
     elif args.cmd == 'evaluate': #evaluate
         print "Evaluating", args.model
         evaluate(model, data, args.bptt)
@@ -103,76 +108,6 @@ def evaluate(model, data, bptt):
         model.reset()
         print "\r\033[K",
         print "{}: error={}, accuracy={}".format(l,err, acc)
-
-def open_bigwigs_(model, dest, chrom_sizes, url, name, exe, email='anon@anon.com'):
-    import rnn.dropout
-    import ucsc_track
-    files = {}
-    outputs = 0
-    genome = os.path.basename(chrom_sizes).split('.')[0]
-    #print genome
-    #print chrom_sizes
-    #print os.path.basename(chrom_sizes)
-    track_path = os.path.join(dest, genome, 'TRACKS')
-    genome_path = os.path.join(dest, 'GENOMES')
-    if not os.path.exists(dest):
-        os.makedirs(dest)
-    with open(genome_path, 'a') as f:
-        print >>f, 'genome', genome
-        print >>f, 'trackDb', os.path.join(genome, 'TRACKS')
-    hub_path = os.path.join(dest, 'HUB')
-    if not os.path.exists(hub_path):
-        with open(hub_path, 'w') as f:
-            print >>f, 'hub', name
-            print >>f, 'shortLabel', name
-            print >>f, 'longLabel', name
-            print >>f, 'genomesFile', 'GENOMES'
-            print >>f, 'email', email
-            print >>f, 'descriptionUrl', 'index.html'
-    dest = os.path.join(dest, genome)
-    if not os.path.exists(dest):
-        os.makedirs(dest)
-    
-    with open(track_path, 'w') as track_f:
-        print >>track_f, 'track', name
-        print >>track_f, 'group', name
-        print >>track_f, 'shortLabel', name
-        print >>track_f, 'longLabel', name
-        print >>track_f, 'superTrack', 'on'
-        print >>track_f, ''
-        for i in xrange(len(model.layers)):
-            l = model.layers[i]
-            if hasattr(l, 'outputs'):
-                outputs = l.outputs
-            if not type(l) is rnn.dropout.Dropout: #ignore dropout layers
-                layer_name = '-'.join([name, 'layer'+str(i)])
-                print >>track_f, 'track', layer_name
-                print >>track_f, 'compositeTrack', 'on'
-                print >>track_f, 'parent', name
-                print >>track_f, 'group', layer_name
-                print >>track_f, 'shortLabel', layer_name
-                print >>track_f, 'longLabel', layer_name
-                print >>track_f, 'type', 'bigWig'
-                print >>track_f, ''
-                for j in xrange(outputs):
-                    d = os.path.join(dest, 'layer'+str(i), 'output'+str(j)+'.bw')
-                    dir_path = os.path.dirname(d)
-                    if not os.path.exists(dir_path):
-                        os.makedirs(dir_path)
-                    u = os.path.join(url, genome, 'layer'+str(i), 'output'+str(j)+'.bw')
-                    n = '-'.join([layer_name, 'output'+str(j)])
-                    desc = ' '.join([name, 'Layer'+str(i), 'Output'+str(j)])
-                    f = ucsc_track.Bigwig(d, chrom_sizes, exe=exe, name=n
-                                          , description=desc, url=u)
-                    files[(i,j)] = f
-                    print >>track_f, 'track', f.name
-                    print >>track_f, 'parent', layer_name
-                    print >>track_f, 'shortLabel', f.name
-                    print >>track_f, 'longLabel', f.name
-                    print >>track_f, 'type', 'bigWig'
-                    print >>track_f, 'bigDataUrl', f.url
-                    print >>track_f, ''
-    return files
 
 from contextlib import contextmanager
 
@@ -255,51 +190,59 @@ def as_matrix(data):
         mat[:len(s),j:j+1] = s
     return mat
             
-def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq, start_epoch=0):
+def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
+          , start_epoch=0, validate=True):
     save_file_format = '{}_epoch{:06}_loss{:.3f}_acc{:.3f}.bin'
     start_epoch += 1
     epochs += start_epoch-1
-    #shuffle data
-    random.shuffle(data)
-    #hold out last 5% of sequences for validation
-    m = int(0.95*len(data))
-    training = data[:m]
-    validation = data[m:]
+    if validate:
+        #shuffle data
+        random.shuffle(data)
+        #hold out last 5% of sequences for validation
+        m = int(0.95*len(data))
+        training = data[:m]
+        validation = data[m:]
+    else:
+        training = data
     print "Number of training sequences:", len(training)
     print "Training on:", sorted(zip(*training)[0])
-    print "Number of validation sequences:", len(validation)
-    print "Validating on:", sorted(zip(*validation)[0])
+    if validate:
+        print "Number of validation sequences:", len(validation)
+        print "Validating on:", sorted(zip(*validation)[0])
     #convert to np matrices
     training = as_matrix(training)
-    validation = as_matrix(validation)
+    if validate:
+        validation = as_matrix(validation)
     for epoch in xrange(start_epoch, epochs+1):
         h = "Epoch {}/{}:".format(epoch, epochs)
         #randomize the order of the training data
-        count = [0]
         np.random.shuffle(training.T)
-        for i in xrange(0, m, batch_size):
-            X = training[:-1, i:i+batch_size]
-            Y = training[1:, i:i+batch_size]
-            def progress(j,n):
-                count[0] += j
-                if count[0] > 10000:
-                    print_progress_bar(h+" training", i+float(j*X.shape[1])/n, m)
-                    count[0] = count[0] % 10000
-            train_batch(model, X, Y, bptt, callback=progress)
-            model.reset()
-        #validate and reset
+        #train
         count = [0]
         def progress(j,n):
             count[0] += j
-            if count[0] > 10000:
-                print_progress_bar(h+" validating", j, n)
-                count[0] = count[0] % 10000
-        err,acc = validate(model, validation[:-1,], validation[1:,], bptt, callback=progress)
-        print "\r\033[K{} error={}, accuracy={}".format(h, err, acc)
-	sys.stdout.flush()
-        model.reset()
+            if count[0] > 1:
+                print_progress_bar(h+" training", j, n)
+                count[0] = count[0] % 1
+        X = training[:-1]
+        Y = training[1:]
+        err,acc = train_epoch(model, X, Y, batch_size, bptt, callback=progress)
+        print "\r\033[K{} [Training] error={}, accuracy={}".format(h, err, acc)
+        sys.stdout.flush()
+        #validate and reset
+        if validate:
+            count = [0]
+            def progress(j,n):
+                count[0] += j
+                if count[0] > 1:
+                    print_progress_bar(h+" validating", j, n)
+                    count[0] = count[0] % 1
+            err,acc = validate(model, validation[:-1,], validation[1:,], bptt, callback=progress)
+            print "\r\033[K{} [Validation] error={}, accuracy={}".format(h, err, acc)
+            sys.stdout.flush()
+            model.reset()
+        #check epoch and save model
         if epoch % save_freq == 0:
-            #save model
             save_path = save_file_format.format(save_prefix, epoch, err, acc)
             with open(save_path, 'w') as f:
                 pickle.dump(model, f)
@@ -320,12 +263,30 @@ def train_sequence(model, x, y, bptt):
     for xb,yb in chunks(x, y, bptt):
         model.train(xb,yb)
 
-def train_batch(model, x, y, bptt, callback=None):
-    n = x.shape[0]
-    for i in xrange(0, n, bptt):
-        if not callback is None:
-            callback(i,n)
-        model.train(x[i:i+bptt,], y[i:i+bptt,])
+def train_epoch(model, x, y, batch_size, bptt, callback=None):
+    (m,n) = x.shape
+    err = 0
+    acc = 0
+    denom = 0
+    for j in xrange(0, n, batch_size):
+        end = min(n, j+batch_size)
+        for i in xrange(0, m, bptt):
+            if not callback is None:
+                callback(j+(i/float(m))*(end-j), n)
+            Yh = model.train(x[i:i+bptt,j:end], y[i:i+bptt,j:end])
+            cent, cor, d = cross_ent_and_correct(Yh, y[i:i+bptt,j:end])
+            err += cent
+            acc += cor
+            denom += d
+        model.reset()
+    return err/denom, acc/float(denom)
+
+#def train_batch(model, x, y, bptt, callback=None):
+#    n = x.shape[0]
+#    for i in xrange(0, n, bptt):
+#        if not callback is None:
+#            callback(i,n)
+#        model.train(x[i:i+bptt,], y[i:i+bptt,])
 
 def validate(model, x, y, bptt, callback=None):
     (_,b) = x.shape
