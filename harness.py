@@ -54,7 +54,7 @@ def main():
         else:
             validate = True
         train(model, data, args.epochs, args.bptt, args.batch_size, save_prefix
-              , args.snapshot_every, start_epoch = epoch, validate=validate)
+              , args.snapshot_every, start_epoch = epoch, do_validate=validate)
     elif args.cmd == 'evaluate': #evaluate
         print "Evaluating", args.model
         evaluate(model, data, args.bptt)
@@ -191,11 +191,11 @@ def as_matrix(data):
     return mat
             
 def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
-          , start_epoch=0, validate=True):
+          , start_epoch=0, do_validate=True):
     save_file_format = '{}_epoch{:06}_loss{:.3f}_acc{:.3f}.bin'
     start_epoch += 1
     epochs += start_epoch-1
-    if validate:
+    if do_validate:
         #shuffle data
         random.shuffle(data)
         #hold out last 5% of sequences for validation
@@ -206,12 +206,12 @@ def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
         training = data
     print "Number of training sequences:", len(training)
     print "Training on:", sorted(zip(*training)[0])
-    if validate:
+    if do_validate:
         print "Number of validation sequences:", len(validation)
         print "Validating on:", sorted(zip(*validation)[0])
     #convert to np matrices
     training = as_matrix(training)
-    if validate:
+    if do_validate:
         validation = as_matrix(validation)
     for epoch in xrange(start_epoch, epochs+1):
         h = "Epoch {}/{}:".format(epoch, epochs)
@@ -230,7 +230,7 @@ def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
         print "\r\033[K{} [Training] error={}, accuracy={}".format(h, err, acc)
         sys.stdout.flush()
         #validate and reset
-        if validate:
+        if do_validate:
             count = [0]
             def progress(j,n):
                 count[0] += j
