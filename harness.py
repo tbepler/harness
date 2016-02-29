@@ -262,7 +262,6 @@ def print_progress_bar(header, i, n):
 def train_sequence(model, x, y, bptt):
     for xb,yb in chunks(x, y, bptt):
         model.train(xb,yb)
-        model.advance()
 
 def train_epoch(model, x, y, batch_size, bptt, callback=None):
     (m,n) = x.shape
@@ -279,7 +278,6 @@ def train_epoch(model, x, y, batch_size, bptt, callback=None):
             err += cent
             acc += cor
             denom += d
-            model.advance()
         model.reset()
     return err/denom, acc/float(denom)
 
@@ -305,7 +303,6 @@ def validate(model, x, y, bptt, callback=None):
         err += cent
         acc += cor
         n += m
-        model.advance()
     return err/n, acc/float(n)
             
 def cross_ent_and_correct( yh, y ):
