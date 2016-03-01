@@ -7,7 +7,7 @@ import os
 import random
 import sys
 
-nucleotides = {'A':0, 'C':1, 'G':2, 'T':3}
+nucleotides = {'A':0, 'C':1, 'G':2, 'T':3, 'N':4}
 
 parser = argparse.ArgumentParser("Harness for training and evaluating models.")
 parser.add_argument('cmd', choices=['train','evaluate','annotate'], help='which command to run')
@@ -83,11 +83,11 @@ def model_name_epoch(path):
         epoch = 0
     return name,epoch
 
-def load_model(path, alphabet = len(nucleotides)):
+def load_model(path, inputs=len(nucleotides), outputs=len(nucleotides)-1):
     ext = os.path.splitext(path)[-1].lower()
     if ext == '.py': #need to load model from python file
         model = imp.load_source("model", path)
-        return model.build(alphabet)
+        return model.build(inputs, outputs)
     else: #unpickle model from binary file
         with open(path) as f:
             return pickle.load(f)
@@ -313,7 +313,7 @@ def cross_ent_and_correct( yh, y ):
     for i in xrange(n):
         for j in xrange(b):
             k = y[i,j]
-            if k > -1:
+            if -1 < k < yh.shape[2]:
                 m += 1
                 cent -= math.log(yh[i,j,k])
                 l = np.argmax(yh[i,j,])
@@ -328,7 +328,7 @@ def cross_entropy( yh, y ):
     for i in xrange(n):
         for j in xrange(b):
             k = y[i,j]
-            if k > -1: #check for mask value in y
+            if -1 < k < yh.shape[2]: #check for mask value in y
                 err -= math.log(yh[i,j,k])
                 m += 1
     return err, m
