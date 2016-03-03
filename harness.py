@@ -315,7 +315,12 @@ def cross_ent_and_correct( yh, y ):
             k = y[i,j]
             if -1 < k < yh.shape[2]:
                 m += 1
-                cent -= math.log(yh[i,j,k])
+                try:
+                    cent -= math.log(yh[i,j,k])
+                except Exception as e:
+                    print e
+                    print i, j, k, yh[i,j,k]
+                    assert False
                 l = np.argmax(yh[i,j,])
                 if k == l:
                     cor += 1
