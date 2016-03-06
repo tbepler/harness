@@ -6,13 +6,14 @@ import genrnn.util.dna
 import genrnn.util.progress
 
 name = 'evaluate'
+description = 'Command for evaluating models.'
 
-parser = argparse.ArgumentParser("Command for evaluating models.")
-parser.add_argument('model', help='model file')
-parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
-parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
-parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
-parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
+def init_parser(parser):
+    parser.add_argument('model', help='model file')
+    parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
+    parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
+    parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
+    parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
 
 def run(args):
     #check whether specific float size was specified
@@ -22,9 +23,9 @@ def run(args):
         dtype = np.float64
     else:
         dtype = None
-    inputs = len(util.dna.nucleotides)
-    model,_,_ = util.model.load_model(args.model, inputs, inputs-1, dtype=dtype)
-    data = util.dna.load_data(args.files, args.fragment)
+    inputs = len(genrnn.util.dna.nucleotides)
+    model,_,_ = genrnn.util.model.load_model(args.model, inputs, inputs-1, dtype=dtype)
+    data = genrnn.util.dna.load_data(args.files, args.fragment)
     print "Evaluating", args.model
     evaluate(model, data, args.bptt)
 
@@ -38,9 +39,9 @@ def evaluate(model, data, bptt):
         def progress(k,n):
                 count[0] += k
                 if count[0] > 10000:
-                    util.progress.print_progress_bar("Evaluating", j+float(k*X.shape[1])/n, m)
+                    genrnn.util.progress.print_progress_bar("Evaluating", j+float(k*X.shape[1])/n, m)
                     count[0] = count[0] % 10000
-        err, acc = util.model.validate(model, X, Y, bptt, callback=progress)
+        err, acc = genrnn.util.model.validate(model, X, Y, bptt, callback=progress)
         model.reset()
         print "\r\033[K",
         print "{}: error={}, accuracy={}".format(l,err, acc)

@@ -1,6 +1,8 @@
 import os
 import imp
+import math
 import cPickle as pickle
+import numpy as np
 
 def load_model(path, inputs, outputs, dtype = None):
     ext = os.path.splitext(path)[-1].lower()

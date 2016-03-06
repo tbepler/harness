@@ -8,17 +8,18 @@ import genrnn.util.dna
 import genrnn.util.progress
 
 name = 'annotate'
+description = 'Command for annotating using models.'
 
-parser = argparse.ArgumentParser("Command for annotating using model.")
-parser.add_argument('model', help='model file')
-parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
-parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
-parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
-parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
-parser.add_argument('--annotate-dest', dest='annotate_dest', default=None, help='destination to write annotations to (default: annotations/model_name)')
-parser.add_argument('--chrom-size', dest='chrom_size', default=None, help='path to chromosome sizes file for creating bigWig annotations')
-parser.add_argument('--annotate-url', dest='annotate_url', default='', help='url prefix for annotations')
-parser.add_argument('--bigwig-exe', dest='bigwig_exe', default='wigToBigWig', help='path to wigToBigWig executable (default: wigToBigWig)')
+def init_parser(parser):
+    parser.add_argument('model', help='model file')
+    parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
+    parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
+    parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
+    parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
+    parser.add_argument('--annotate-dest', dest='annotate_dest', default=None, help='destination to write annotations to (default: annotations/model_name)')
+    parser.add_argument('--chrom-size', dest='chrom_size', default=None, help='path to chromosome sizes file for creating bigWig annotations')
+    parser.add_argument('--annotate-url', dest='annotate_url', default='', help='url prefix for annotations')
+    parser.add_argument('--bigwig-exe', dest='bigwig_exe', default='wigToBigWig', help='path to wigToBigWig executable (default: wigToBigWig)')
 
 def run(args):
     #check whether specific float size was specified
@@ -29,7 +30,7 @@ def run(args):
     else:
         dtype = None
     model, model_name, epoch = load_model(args.model, dtype=dtype)
-    data = util.dna.load_data(args.files, args.fragment)
+    data = genrnn.util.dna.load_data(args.files, args.fragment)
     if args.chrom_size is None:
         print "Error: chromosome sizes file must be specified for annotation."
         return
@@ -46,23 +47,23 @@ def run(args):
 @contextmanager
 def bigwigs(model, dest, chrom_sizes, url, name, exe, email='anon@anon.com'):
     import rnn.dropout
-    import util.ucsc.hub
-    import util.ucsc.track
+    import genrnn.util.ucsc.hub
+    import genrnn.util.ucsc.track
     genome = os.path.basename(chrom_sizes).split('.')[0]
     hub_path = os.path.join(dest, 'HUB')
     
-    with util.ucsc.hub.hub(hub_path, name=name, url_prefix=url) as hub:
+    with genrnn.util.ucsc.hub.hub(hub_path, name=name, url_prefix=url) as hub:
         files = {}
         outputs = 0
         trackdb = hub[genome]
-        trackdb[name] = util.ucsc.track.SuperTrack(name)
+        trackdb[name] = genrnn.util.ucsc.track.SuperTrack(name)
         for i in xrange(len(model.layers)):
             l = model.layers[i]
             if hasattr(l, 'outputs'):
                 outputs = l.outputs
             if not type(l) is rnn.dropout.Dropout: #ignore dropout layers
                 layer_name = '-'.join([name, 'layer'+str(i)])
-                trackdb[layer_name] = util.ucsc.track.CompositeTrack(layer_name, parent=name
+                trackdb[layer_name] = genrnn.util.ucsc.track.CompositeTrack(layer_name, parent=name
                                                                      , type='bigWig')
                 for j in xrange(outputs):
                     rpath = os.path.join('layer'+str(i), 'output'+str(j)+'.bw')
@@ -96,12 +97,12 @@ def annotate(model, data, bptt, dest, chrom_sizes, url, name, exe):
             def progress(k):
                 count[0] += k
                 if count[0] > 10000:
-                    util.progress.print_progress_bar("Annotating", j+float(k)/(n-1), m)
+                    genrnn.util.progress.print_progress_bar("Annotating", j+float(k)/(n-1), m)
                     count[0] = count[0] % 10000
             for i in xrange(0, n-1, bptt):
                 progress(i)
                 Yh = model.predict(X[i:i+bptt])
-                cent, cor, _ = util.model.cross_ent_and_correct(Yh, Y[i:i+bptt])
+                cent, cor, _ = genrnn.util.model.cross_ent_and_correct(Yh, Y[i:i+bptt])
                 err += cent
                 acc += cor
                 #write annotations

@@ -1,5 +1,7 @@
 import argparse
 import random
+import os
+import sys
 import numpy as np
 import cPickle as pickle
 
@@ -8,19 +10,20 @@ import genrnn.util.dna
 import genrnn.util.progress
 
 name = 'train'
+description = 'Command for training models.'
 
-parser = argparse.ArgumentParser("Command for training models.")
-parser.add_argument('model', help='model file')
-parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
-parser.add_argument('--max-length', dest='max_len', type=int, default=None, help='maximum length at which input sequences should be truncated (default: No truncation)')
-parser.add_argument('--epochs', type=int, default=100, help='number of iterations through the training data (default: 100)')
-parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
-parser.add_argument('--snapshot-prefix', dest='save_prefix', default=None, help='path prefix where model snapshots should be saved (default: snapshots/model)')
-parser.add_argument('--snapshot-every', dest='snapshot_every', type=int, default=10, help='snapshot frequency in epochs (default: 10)')
-parser.add_argument('--batch-size', dest='batch_size', type=int, default=32, help='number of sequenes per batch (default: 32)')
-parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
-parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
-parser.add_argument('--validate', dest='validate', default='on', choices=['on','off'], help='whether to partition data into training and validation sets when training (default: on)')
+def init_parser(parser):
+    parser.add_argument('model', help='model file')
+    parser.add_argument('files', metavar='FILE', nargs='+', help='input files')
+    parser.add_argument('--max-length', dest='max_len', type=int, default=None, help='maximum length at which input sequences should be truncated (default: No truncation)')
+    parser.add_argument('--epochs', type=int, default=100, help='number of iterations through the training data (default: 100)')
+    parser.add_argument('--bptt', dest='bptt', type=int, default=2000, help='the length at which BPTT should be truncated, 0 indicates full BPTT (default: 128)')
+    parser.add_argument('--snapshot-prefix', dest='save_prefix', default=None, help='path prefix where model snapshots should be saved (default: snapshots/model)')
+    parser.add_argument('--snapshot-every', dest='snapshot_every', type=int, default=10, help='snapshot frequency in epochs (default: 10)')
+    parser.add_argument('--batch-size', dest='batch_size', type=int, default=32, help='number of sequenes per batch (default: 32)')
+    parser.add_argument('--fragment', dest='fragment', type=int, default=0, help='length into which input sequences should be fragmented, 0 indicates no fragmentation (default: 0)')
+    parser.add_argument('--float', dest='dtype', choices=['32','64','default'], default='default', help='number of bits to use for floating point values')
+    parser.add_argument('--validate', dest='validate', default='on', choices=['on','off'], help='whether to partition data into training and validation sets when training (default: on)')
 
 def run(args):
     #check whether specific float size was specified
@@ -30,14 +33,14 @@ def run(args):
         dtype = np.float64
     else:
         dtype = None
-    inputs = len(util.dna.nucleotides)
-    model, model_name, epoch = util.model.load_model(args.model, inputs, inputs-1, dtype=dtype)
+    inputs = len(genrnn.util.dna.nucleotides)
+    model, model_name, epoch = genrnn.util.model.load_model(args.model, inputs, inputs-1, dtype=dtype)
     if args.save_prefix is None:
         save_prefix = os.path.join('snapshots', model_name)
     else:
         save_prefix = args.save_prefix
     #load data
-    data = util.dna.load_data(args.files, args.fragment)
+    data = genrnn.util.dna.load_data(args.files, args.fragment)
     print "Training", args.model
     dir = os.path.dirname(save_prefix)
     if not os.path.exists(dir):
@@ -91,11 +94,11 @@ def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
         def progress(j,n):
             count[0] += j
             if count[0] > 1:
-                util.progress.print_progress_bar(h+" training", j, n)
+                genrnn.util.progress.print_progress_bar(h+" training", j, n)
                 count[0] = count[0] % 1
         X = training[:-1]
         Y = training[1:]
-        err,acc = util.model.train(model, X, Y, batch_size, bptt, callback=progress)
+        err,acc = genrnn.util.model.train(model, X, Y, batch_size, bptt, callback=progress)
         print "\r\033[K{} [Training] error={}, accuracy={}".format(h, err, acc)
         sys.stdout.flush()
         #validate and reset
@@ -104,9 +107,9 @@ def train(model, data, epochs, bptt, batch_size, save_prefix, save_freq
             def progress(j,n):
                 count[0] += j
                 if count[0] > 1:
-                    util.progress.print_progress_bar(h+" validating", j, n)
+                    genrnn.util.progress.print_progress_bar(h+" validating", j, n)
                     count[0] = count[0] % 1
-            err,acc = util.model.validate(model, validation[:-1,], validation[1:,], bptt
+            err,acc = genrnn.util.model.validate(model, validation[:-1,], validation[1:,], bptt
                                           , callback=progress)
             print "\r\033[K{} [Validation] error={}, accuracy={}".format(h, err, acc)
             sys.stdout.flush()
