@@ -48,17 +48,23 @@ def bin(models, names, f, bptt):
         x = encode(seq)
         ps[:] = 0
         for j in xrange(0, len(x), bptt):
+	    xj = x[j:j+bptt,:]
             for i in xrange(len(models)):
-                yh = models[i].predict(x[j:j+bptt,:])
-                ps[i] += np.sum(np.log(yh[:,0,x]))
+                yh = models[i].predict(xj)
+		for k in xrange(xj.shape[0]-1):
+		    if 0 <= xj[k+1,0] < yh.shape[2]:
+		        ps[i] += np.log(yh[k,0,xj[k+1,0]])
+                #ps[i] += np.sum(np.log(yh[:,0,x]))
         for i in xrange(len(models)):
             models[i].reset()
         js = np.argwhere(ps == np.amax(ps))
         i = np.argmax(ps)
         n += 1
+	#print seq, label, [names[j] for j in js], ps
         for j in js:
             if names[j] == label:
                 correct += 1/float(len(js))
+		#print 'Correct!'
     return correct, n
 
 def encode(seq):
