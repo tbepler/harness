@@ -38,15 +38,11 @@ def run(args):
     #load data
     data = genrnn.util.dna.load_data(args.files, args.fragment)
     print "Training", args.model
-    dir = os.path.dirname(save_prefix)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
     if args.validate == 'off':
         validate = False
     else:
         validate = True
-    train(model, data, args.epochs, args.bptt, args.batch_size, save_prefix
-          , args.snapshot_every, start_epoch = epoch, do_validate=validate)
+    train(model, data, args.epochs, args.bptt, args.batch_size, saver, start_epoch = epoch, do_validate=validate)
         
 def as_matrix(data):
     ss = zip(*data)[1]
@@ -122,6 +118,9 @@ def load_saver(args, model_name):
         prefix = os.path.join('snapshots', model_name)
     else:
         prefix = args.save_prefix
+    dr = os.path.dirname(prefix)
+    if not os.path.exists(dr):
+        os.makedirs(dr)
     save_format = ''.join([prefix, '_epoch{:06}_loss{:.3f}_acc{:.3f}.bin'])
     if args.save_method == 'best':
         return BestSaver(save_format)
