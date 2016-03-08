@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 nucleotides = {'A':0, 'C':1, 'G':2, 'T':3, 'N':4}
 
