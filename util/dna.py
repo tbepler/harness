@@ -14,6 +14,9 @@ class Label(object):
     def __repr__(self):
         return self.__str__()
 
+labeled = 0
+unlabeled = 1
+    
 def load_data(paths, report=sys.stdout, **kwargs):
     import data
     dtypes = [parse_type(path) for path in paths]
@@ -22,22 +25,26 @@ def load_data(paths, report=sys.stdout, **kwargs):
         raise Exception()
     dtype = dtypes[0]
     labels = dtype == labeled
-    return data.split_data(read_files(paths,report=report,**kwargs), labels=labels
+    Xt, Yt, Xv, Yv = data.split_data(read_files(paths,report=report,**kwargs), labels=labels
                            , report=sys.stdout, **kwargs)
+    if labels:
+        labels = max(np.max(Yt), np.max(Yv))+1
+    else:
+        labels = 0
+    return Xt, Yt, Xv, Yv, labels
 
 def read_files(paths, report=sys.stdout, **kwargs):
-    import itertools
-    itertools.chain(read_file(path, report=report, **kwargs) for path in paths)
-
+    for gen in [read_file(path, report=report, **kwargs) for path in paths]:
+        for x in gen:
+            yield x
+            
 def read_file(path, report=sys.stdout, **kwargs):
     _,ext = os.path.splitext(path)
-    if ext == 'fa' or ext == 'fna' or ext == 'fasta':
-        read_fasta(path, report=report, **kwargs)
-    elif ext == 'lab':
-        read_labeled(path, report=report)
-
-labeled = 0
-unlabeled = 1
+    if ext == '.fa' or ext == '.fna' or ext == '.fasta':
+        return read_fasta(path, report=report, **kwargs)
+    elif ext == '.lab':
+        return read_labeled(path, report=report)
+    raise Exception('Error: unrecognized extension {} on file {}'.format(ext,path))
 
 def parse_type(path):
     _,ext = os.path.splitext(path)
@@ -52,7 +59,7 @@ def read_labeled(path, report=sys.stdout):
             line = line.strip().upper()
             if len(line) > 0 and not line.startswith('#'):
                 [x,y] = line.split()
-                x = [nucleotides.get(b, default=-1) for b in x]
+                x = [nucleotides.get(b, -1) for b in x]
                 y = int(y)
                 yield x,y
 

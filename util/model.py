@@ -37,7 +37,7 @@ def train(model, x, y, batch_size, bptt, callback=None):
         size = min(n-j, batch_size)
         start = 0
         end = 0
-        for yh in model.train(x[:,j:j+batch_size], y[:,j:j+batch_Size], bptt=bptt):
+        for yh in model.train(x[:,j:j+batch_size], y[:,j:j+batch_size], bptt=bptt):
             end += yh.shape[0]
             cent, cor, d = cross_ent_and_correct(yh, y[start:end, j:j+batch_size])
             err += cent
@@ -67,6 +67,7 @@ def validate(model, x, y, bptt, callback=None):
     return err/n, acc/float(n)
             
 def cross_ent_and_correct( yh, y ):
+    #print y
     (n,b) = y.shape
     cent = 0
     cor = 0

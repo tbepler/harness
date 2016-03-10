@@ -32,26 +32,18 @@ def run(args):
         dtype = np.float64
     else:
         dtype = None
-    inputs = len(genrnn.util.dna.nucleotides)
-    model, model_name, epoch = genrnn.util.model.load_model(args.model, inputs, inputs-1, dtype=dtype)
-    saver = load_saver(args, model_name)
     #load data
-    Xtrain, Ytrain, Xval, Yval = genrnn.util.dna.load_data(args.files, report=sys.stdout
-                                                           , fragment=args.fragment
-                                                           , validation=args.validate)
+    Xtrain, Ytrain, Xval, Yval, labels = genrnn.util.dna.load_data(args.files, report=sys.stdout
+                                                                   , fragment=args.fragment
+                                                                   , validation=args.validate)
+    inputs = len(genrnn.util.dna.nucleotides)
+    outputs = labels if labels > 0 else inputs - 1
+    model, model_name, epoch = genrnn.util.model.load_model(args.model, inputs, outputs, dtype=dtype)
+    saver = load_saver(args, model_name)
+    
     print "Training", args.model
     train(model, Xtrain, Ytrain, Xval, Yval, args.epochs, args.bptt, args.batch_size
           , saver, start_epoch = epoch)
-        
-def as_matrix(data):
-    ss = zip(*data)[1]
-    m = max(len(s) for s in ss)
-    n = len(ss)
-    mat = np.full((m,n), -1, dtype=np.int32) #fill with mask value
-    for j in xrange(n):
-        s = ss[j]
-        mat[:len(s),j:j+1] = s
-    return mat
             
 def train(model, Xtrain, Ytrain, Xval, Yval, epochs, bptt, batch_size, saver
           , start_epoch=0):
@@ -61,8 +53,8 @@ def train(model, Xtrain, Ytrain, Xval, Yval, epochs, bptt, batch_size, saver
         h = "Epoch {}/{}:".format(epoch, epochs)
         #randomize the order of the training data
         perm = np.random.permutation(Xtrain.shape[1])
-        Xtrain = Xtrain[:,perm]
-        Ytrain = Ytrain[:,perm]
+        Xtrain[:,:] = Xtrain[:,perm]
+        Ytrain[:,:] = Ytrain[:,perm]
         #train
         count = [0]
         def progress(j,n):
@@ -86,7 +78,6 @@ def train(model, Xtrain, Ytrain, Xval, Yval, epochs, bptt, batch_size, saver
                                           , callback=progress)
             print "\r\033[K{} [Validation] error={}, accuracy={}".format(h, err, acc)
             sys.stdout.flush()
-            model.reset()
         #check epoch and save model
         saver.save(model, epoch, err, acc, final=(epoch==epochs))
 
