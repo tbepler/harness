@@ -2,41 +2,46 @@ import numpy as np
 import sys
 import random
 
-language = 'language'
-classify = 'classify'
-translate = 'translate'
+
 
 #load sequences for language modeling
-def load_data(gen, validation=0.05, report=sys.stdout, dtype=np.int32, method=language):
-    data = list(gen) #data is list of (sequence,label) or (sequence,sequence) pairs
-    # (sequence,label) for method='language' or method='classify'
-    # (sequence,sequence) for method='translate'
+def split_data(gen, validation=0.05, labels=False, report=sys.stdout
+               , xtype=np.int32, ytype=np.int32):
+    data = list(gen) #data is list of (x,y) pairs
     if validation > 0:
-        random.shuffle(data)
-        m = int((1-validation)*len(data))
-        training = data[:m]
-        validation = data[m:]
+        groups = [data]
+        if labels: #split data by label
+            groups = {}
+            for x,y in data:
+                d = groups.get(y, default=[])
+                d.append((x,y))
+                groups[y] = d
+            groups = list(groups)
+        training = []
+        validation = []
+        for group in groups:
+            random.shuffle(group)
+            m = int((1-validation)*len(group))
+            training.extend(data[:m])
+            validation.extend(data[m:])
     else:
         training = data
         validation = []
     print >>report, "Number of training sequences:", len(training)
-    if method == language:
-        print >>report, "Training on:", sorted(zip(*training)[1])
     if len(validation) > 0:
         print >>report, "Number of validation sequences:", len(validation)
-        if method == language:
-            print >>report, "Validating on:", sorted(zip(*validation)[1])
     #convert to matrix
-    training = as_matrix(zip(*training)[0], dtype)
+    Xtrain = as_matrix(zip(*training)[0], xtype)
+    Ytrain = as_matrix(zip(*training)[1], ytype)
     if len(validation) > 0:
-        validation = as_matrix(validation, dtype)
+        Xval = as_matrix(zip(*validation)[0], xtype)
+        Yval = as_matrix(zip(*validation)[1], ytype)
     else:
-        validation = np.zeros((0,0), dtype=dtype)
-    Xtrain = training[:-1]
-    Ytrain = training[1:]
-    Xval = validation[:-1]
-    Yval = validation[1:]
+        Xval = np.zeros((0,0), dtype=xtype)
+        Yval = np.zeros((0,0), dtype=ytype)
     return Xtrain, Ytrain, Xval, Yval
+
+
 
 def as_matrix(ss, dtype):
     m = max(len(s) for s in ss)

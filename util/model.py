@@ -34,33 +34,36 @@ def train(model, x, y, batch_size, bptt, callback=None):
     acc = 0
     denom = 0
     for j in xrange(0, n, batch_size):
-        end = min(n, j+batch_size)
-        for i in xrange(0, m, bptt):
-            if not callback is None:
-                callback(j+(i/float(m))*(end-j), n)
-            Yh = model.train(x[i:i+bptt,j:end], y[i:i+bptt,j:end])
-            cent, cor, d = cross_ent_and_correct(Yh, y[i:i+bptt,j:end])
+        size = min(n-j, batch_size)
+        start = 0
+        end = 0
+        for yh in model.train(x[:,j:j+batch_size], y[:,j:j+batch_Size], bptt=bptt):
+            end += yh.shape[0]
+            cent, cor, d = cross_ent_and_correct(yh, y[start:end, j:j+batch_size])
             err += cent
             acc += cor
             denom += d
-        model.reset()
+            start = end
+            if not callback is None:
+                callback(j+end*size/float(m), n)
     return err/denom, acc/float(denom)
 
 def validate(model, x, y, bptt, callback=None):
-    (_,b) = x.shape
+    (k,b) = x.shape
     err = 0
     acc = 0
     n = 0
-    for i in xrange(0, x.shape[0], bptt):
-        if not callback is None:
-            callback(i,x.shape[0])
-        X = x[i:i+bptt,]
-        Y = y[i:i+bptt,]
-        Yh = model.predict(X)
-        cent, cor, m = cross_ent_and_correct(Yh, Y)
+    start = 0
+    end = 0
+    for yh in model.predict(x, bptt=bptt):
+        end += yh.shape[0]
+        cent, cor, m = cross_ent_and_correct(yh, y[start:end])
         err += cent
         acc += cor
         n += m
+        start = end
+        if not callback is None:
+            callback(end, k)
     return err/n, acc/float(n)
             
 def cross_ent_and_correct( yh, y ):
