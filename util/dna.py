@@ -21,7 +21,9 @@ def load_data(paths, report=sys.stdout, **kwargs):
         print >>report, "Error: all files must be of same type but were {}".format(dtypes)
         raise Exception()
     dtype = dtypes[0]
-    return data.split_data(read_files(paths,report=report,**kwargs), **kwargs)
+    labels = dtype == labeled
+    return data.split_data(read_files(paths,report=report,**kwargs), labels=labels
+                           , report=sys.stdout, **kwargs)
 
 def read_files(paths, report=sys.stdout, **kwargs):
     import itertools
