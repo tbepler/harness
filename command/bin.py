@@ -65,6 +65,9 @@ def bin(models, names, f, bptt):
             if names[j] == label:
                 correct += 1/float(len(js))
 		#print 'Correct!'
+	    else:
+                print seq, label, [names[j] for j in js], ps
+                print 'Incorrect'
     return correct, n
 
 def encode(seq):
