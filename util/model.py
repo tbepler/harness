@@ -48,22 +48,26 @@ def train(model, x, y, batch_size, bptt, callback=None):
                 callback(j+end*size/float(m), n)
     return err/denom, acc/float(denom)
 
-def validate(model, x, y, bptt, callback=None):
+def validate(model, x, y, batch_size, bptt, callback=None):
     (k,b) = x.shape
     err = 0
     acc = 0
     n = 0
-    start = 0
-    end = 0
-    for yh in model.predict(x, bptt=bptt):
-        end += yh.shape[0]
-        cent, cor, m = cross_ent_and_correct(yh, y[start:end])
-        err += cent
-        acc += cor
-        n += m
-        start = end
-        if not callback is None:
-            callback(end, k)
+    for j in xrange(0, b, batch_size):
+        start = 0
+        end = 0
+        x_batch = x[:,j:j+batch_size]
+        y_batch = y[:,j:j+batch_size]
+        size = x_batch.shape[1]
+        for yh in model.predict(x_batch, bptt=bptt):
+            end += yh.shape[0]
+            cent, cor, m = cross_ent_and_correct(yh, y_batch[start:end])
+            err += cent
+            acc += cor
+            n += m
+            start = end
+            if not callback is None:
+                callback(j+end*size/float(k), b)
     return err/n, acc/float(n)
             
 def cross_ent_and_correct( yh, y ):

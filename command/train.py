@@ -74,7 +74,7 @@ def train(model, Xtrain, Ytrain, Xval, Yval, epochs, bptt, batch_size, saver
                 if count[0] > 1:
                     genrnn.util.progress.print_progress_bar(h+" validating", j, n)
                     count[0] = count[0] % 1
-            err,acc = genrnn.util.model.validate(model, Xval, Yval, bptt
+            err,acc = genrnn.util.model.validate(model, Xval, Yval, batch_size, bptt
                                           , callback=progress)
             print "\r\033[K{} [Validation] error={}, accuracy={}".format(h, err, acc)
             sys.stdout.flush()
