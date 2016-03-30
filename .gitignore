@@ -1,3 +1,12 @@
+#emacs
+*~
+
+#parser
+data/parsetab.py
+
+#out files
+*.out
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
