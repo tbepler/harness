@@ -28,15 +28,18 @@ class Activation(object):
             for acts in model.activations(data, batch_size=args.batch_size, callback=logger.progress_monitor()):
                 ident = ids[i]
                 if first:
-                    n = sum(a.shape[1] for a in acts) + 2
+                    header = ident.colnames()
+                    n = sum(a.shape[1] for a in acts) + len(header) + 1
                     template = '\t'.join(['{}']*n)
                     layers = ['Layer{}-{}'.format(k,j) for k in xrange(len(acts)) for j in xrange(acts[k].shape[1])]
-                    print >>logger, template.format('Sequence', 'Position', *layers)
+                    print >>logger, template.format(*(header+['Position']+layers))
                     first = False
-                j = 1
+                j = ident.start
+                acts = [act[::ident.step] for act in acts]
                 for jacts in itertools.izip(*acts):
                     layers = [jacts[l][k] for l in xrange(len(jacts)) for k in xrange(jacts[l].size)]
-                    print >>logger, template.format(ident, j, *layers)
+                    line = ident.cols() + [j] + layers
+                    print >>logger, template.format(*line)
                     j += 1
                 i += 1
 
