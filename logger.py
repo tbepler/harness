@@ -68,6 +68,9 @@ class ProgressLogger(object):
                 self.clear_code = '\033[1F\033[K'
         return progress
 
+    def flush(self):
+        self.out.flush()
+
 class BasicLogger(object):
     def __init__(self, out):
         self.out = out
@@ -79,6 +82,9 @@ class BasicLogger(object):
         def progress(*args, **kwargs):
             pass
         return progress
+
+    def flush(self):
+        self.out.flush()
         
 class NullLogger(object):
     def __init__(self):
@@ -91,4 +97,7 @@ class NullLogger(object):
         def progress(*args, **kwargs):
             pass
         return progress
+
+    def flush(self):
+        pass
 

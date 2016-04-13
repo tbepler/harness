@@ -41,6 +41,7 @@ class Fit(object):
             print >>logger, 'Training samples:', len(data_train)
             if data_val is not None:
                 print >>logger, 'Validation samples:', len(data_val)
+            logger.flush()
             saver = self.saver_loader(args, model_name)
             max_iters = args.max_iters
             epoch = start_epoch
@@ -55,6 +56,7 @@ class Fit(object):
                     print >>logger, header
                 line = template.format(epoch, *info.values())
                 print >>logger, line
+                logger.flush()
                 
 
 if __name__=='__main__':
