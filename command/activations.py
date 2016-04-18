@@ -1,3 +1,5 @@
+import pandas as pd
+
 import harness.model as m
 import harness.logger as lg
 
@@ -12,6 +14,7 @@ class Activation(object):
     def argparse(self, argparse):
         argparse.add_argument('model', help='model file')
         argparse.add_argument('files', metavar='FILE', nargs='+', help='input files')
+        argparse.add_argument('-o/--output', dest='out', default='activations.h5', help='output hdf5 file (default: activations.h5)')
         argparse.add_argument('--batch-size', dest='batch_size', type=int, default=256, help='number of sequenes per batch (default: 256)')
         self.model_loader.argparse(argparse)
         self.parser.argparse(argparse)
@@ -23,6 +26,17 @@ class Activation(object):
             data, n_in, n_out = self.parser(args.files, args, ids=True)
             ids,data = zip(*data)
             model, model_name, start_epoch = self.model_loader(args.model, args, n_in, n_out)
+            with pd.get_store(args.out, mode='w', complib='blosc', complevel=9) as store:
+                acts = model.activations(data, batch_size=args.batch_size, callback=logger.progress_monitor())
+                for ident,act in itertools.izip(ids, acts):
+                    layers = {'Layer{}'.format(j) : pd.DataFrame(act[j][::ident.step]) for j in xrange(len(act))}
+                    df = pd.concat(layers, axis=1, names=['Layer', 'Unit'])
+                    for col,name in zip(ident.cols(), ident.colnames()):
+                        df[name] = col
+                    df['Position'] = range(ident.start, ident.start+len(df))
+                    store.append('df', df, min_itemsize=30) #use 30 -- should be chosen more intelligently
+
+        """
             first = True
             i = 0
             for acts in model.activations(data, batch_size=args.batch_size, callback=logger.progress_monitor()):
@@ -42,7 +56,7 @@ class Activation(object):
                     print >>logger, template.format(*line)
                     j += 1
                 i += 1
-
+        """
                 
 
 
