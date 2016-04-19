@@ -28,13 +28,35 @@ class Activation(object):
             model, model_name, start_epoch = self.model_loader(args.model, args, n_in, n_out)
             with pd.get_store(args.out, mode='w', complib='blosc', complevel=9) as store:
                 acts = model.activations(data, batch_size=args.batch_size, callback=logger.progress_monitor())
+                first = True
                 for ident,act in itertools.izip(ids, acts):
+                    if first:
+                        template = ''.join(['{}']*(len(ident.colnames())+1))
+                        print >>logger, template.format(*(ident.colnames()+['Layer']))
+                        logger.flush()
+                        first = False
+                    for i in xrange(len(act)):
+                        print >>logger, template.format(*(ident.cols()+[i]))
+                        logger.flush()
+                        layer = act[i][::ident.step]
+                        for j in xrange(layer.shape[1]):
+                            df = pd.DataFrame({'Position': range(ident.start, ident.start+layer.shape[0])
+                                              , 'Activation': layer[:,j]})
+                            for col,name in zip(ident.cols(), ident.colnames()):
+                                df[name] = col
+                            df['Layer'] = i
+                            df['Unit'] = j
+                            df.set_index(ident.colnames()+['Position','Layer','Unit'], inplace=True)
+                            store.append('df', df, min_itemsize=30)
+                """
                     layers = {'Layer{}'.format(j) : pd.DataFrame(act[j][::ident.step]) for j in xrange(len(act))}
                     df = pd.concat(layers, axis=1, names=['Layer', 'Unit'])
                     for col,name in zip(ident.cols(), ident.colnames()):
                         df[name] = col
                     df['Position'] = range(ident.start, ident.start+len(df))
+                    df.set_index(ident.colnames()+['Position'], inplace=True)
                     store.append('df', df, min_itemsize=30) #use 30 -- should be chosen more intelligently
+                """
 
         """
             first = True
