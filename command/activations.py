@@ -31,7 +31,7 @@ class Activation(object):
                 first = True
                 for ident,act in itertools.izip(ids, acts):
                     if first:
-                        template = ''.join(['{}']*(len(ident.colnames())+1))
+                        template = '\t'.join(['{}']*(len(ident.colnames())+1))
                         print >>logger, template.format(*(ident.colnames()+['Layer']))
                         logger.flush()
                         first = False
