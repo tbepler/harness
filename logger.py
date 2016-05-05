@@ -12,12 +12,12 @@ class Loader(object):
         argparse.add_argument('--log-file', dest='log_file', default=None, help='file to write execution log to (default: stdout)')
 
     @contextmanager
-    def __call__(self, args):
+    def __call__(self, args, default=sys.stdout):
         if args.log_file is not None:
             with open(args.log_file, 'w') as f:
                 yield self.make_logger(f, args.verbose)
         else:
-            yield self.make_logger(sys.stdout, args.verbose)
+            yield self.make_logger(default, args.verbose)
 
     def make_logger(self, out, verbose):
         if verbose == 2:
